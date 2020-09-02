@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<registry
+    xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+    i18n:domain="collective.mirror">
+
+  <record name="plone.displayed_types">
+    <value purge="False">
+      <element>mirror</element>
+    </value>
+  </record>
+
+</registry>
