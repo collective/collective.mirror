@@ -45,7 +45,7 @@
   <subscriber
       for=".mirror.IMirror
            zope.lifecycleevent.IObjectAddedEvent"
-      handler=".mirror.add_mirror_key_to_master_after_adding" />
+      handler=".mirror.add_mirror_id_to_master_after_adding" />
 
   <adapter factory=".mirror.itgIndexer" name="TranslationGroup"/>
   <adapter factory=".mirror.LanguageIndexer" name="Language"/>

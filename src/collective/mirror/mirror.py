@@ -105,7 +105,7 @@ class Mirror(Container):
         self.master_rel = RelationValue(obj_id)
 
 
-def add_mirror_key_to_master_after_adding(mirror, event):
+def add_mirror_id_to_master_after_adding(mirror, event):
     if mirror.master is not None:
         annotations = IAnnotations(mirror.master)
         annotations.setdefault(MIRRORS_KEY, PersistentList()).append(IUUID(mirror))
