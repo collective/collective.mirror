@@ -281,8 +281,7 @@ def find_master(obj):
 # * The mechanism for keeping track of unindexed mirror content when removing a mirror
 #   is probably a bit fragile in that it relies on this being the only operation that
 #   unindexes mirror content in the same request, and a non-persistent annotation on the
-#   master is dropped at the transaction boundary. A simple improvement (which needs
-#   only slightly more code) would be storing that annotation on the mirror itself.
+#   master is dropped at the transaction boundary.
 #
 # * When a mirror is added and the master already has a nested content hierarchy, this
 #   content isn't properly indexed. This is because the events handled by the reindex
@@ -302,3 +301,5 @@ def find_master(obj):
 #   overwritten itgIndexer and LanguageIndexer). If we ever need to be able to link
 #   multilingual content objects to specific mirrors of their translations, we need to
 #   rethink this.
+#
+# * Deleting a folder while it has mirrors isn't handled yet.
