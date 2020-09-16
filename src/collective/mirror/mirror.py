@@ -1,7 +1,6 @@
 from Acquisition import aq_base
 from Acquisition import aq_chain
 from Acquisition import aq_parent
-from BTrees.OOBTree import OOBTree
 from OFS.interfaces import IObjectWillBeAddedEvent
 from OFS.interfaces import IObjectWillBeRemovedEvent
 from persistent.list import PersistentList
@@ -50,7 +49,15 @@ class IMirror(model.Schema):
     )
 
 
-MIRRORS_KEY = 'collective.mirrors'
+MIRRORS_ATTR = '_collective_mirrors'
+
+
+def ensure_mirrors_attr(master):
+    mirrors = getattr(master, MIRRORS_ATTR, None)
+    if mirrors is None:
+        mirrors = PersistentList()
+        setattr(aq_base(master), MIRRORS_ATTR, mirrors)
+    return mirrors
 
 
 @implementer(IMirror)
@@ -68,12 +75,11 @@ class Mirror(Container):
         if self._master:
             old_master = self._master.to_object
             if old_master:
-                annotations = IAnnotations(old_master)
-                mirrors = annotations.get(MIRRORS_KEY)
+                mirrors = getattr(old_master, MIRRORS_ATTR, ())
                 if mirrors:
                     mirrors.remove(IUUID(self))
                     if not mirrors:
-                        annotations.pop(MIRRORS_KEY, None)
+                        delattr(old_master, MIRRORS_ATTR)
 
         self._master = value
 
@@ -83,13 +89,13 @@ class Mirror(Container):
         self._tree = master._tree
         self._count = master._count
         self._mt_index = master._mt_index
-        if not hasattr(master, '__annotations__'):
-            master.__annotations__ = OOBTree()
-        self.__annotations__ = master.__annotations__
+        self.getOrdering()._set_order(master.getOrdering()._order(create=True))
 
-        annotations = IAnnotations(master)
+        mirrors = ensure_mirrors_attr(master)
+        setattr(aq_base(self), MIRRORS_ATTR, mirrors)
+
         try:
-            annotations.setdefault(MIRRORS_KEY, PersistentList()).append(IUUID(self))
+            mirrors.append(IUUID(self))
         except TypeError:
             # self cannot yet be adapted to IUUID while being added
             pass
@@ -107,8 +113,8 @@ class Mirror(Container):
 
 def add_mirror_id_to_master_after_adding(mirror, event):
     if mirror.master is not None:
-        annotations = IAnnotations(mirror.master)
-        annotations.setdefault(MIRRORS_KEY, PersistentList()).append(IUUID(mirror))
+        mirrors = ensure_mirrors_attr(mirror.master)
+        mirrors.append(IUUID(mirror))
 
 
 @implementer(IVocabularyFactory)
@@ -232,7 +238,7 @@ def unindex(obj, event):
     UNINDEXED_KEY = 'mirror.tmp.objects_unindexed'
 
     if IObjectWillBeRemovedEvent.providedBy(event) and IMirror.providedBy(obj):
-        IAnnotations(obj)[MIRRORS_KEY].remove(IUUID(obj))
+        getattr(obj, MIRRORS_ATTR).remove(IUUID(obj))
 
         objects_unindexed = IAnnotations(obj.master).pop(UNINDEXED_KEY)
         suffix = '-mirrored-' + IUUID(obj)
@@ -262,10 +268,7 @@ def find_master(obj):
     for element in aq_chain(obj)[1:]:
         if ISiteRoot.providedBy(element):
             return None, None
-        try:
-            mirror_ids = IAnnotations(element).get(MIRRORS_KEY, ())
-        except TypeError:
-            continue
+        mirror_ids = getattr(element, MIRRORS_ATTR, ())
         if mirror_ids:
             master = element.master if IMirror.providedBy(element) else element
             return master, mirror_ids
