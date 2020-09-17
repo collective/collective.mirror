@@ -1,3 +1,4 @@
+from .interfaces import ICollectiveMirrorLayer
 from Acquisition import aq_base
 from Acquisition import aq_chain
 from Acquisition import aq_parent
@@ -27,6 +28,7 @@ from zope.annotation.interfaces import IAnnotations
 from zope.component import adapter
 from zope.component import getSiteManager
 from zope.component import getUtility
+from zope.globalrequest import getRequest
 from zope.interface import implementer
 from zope.intid.interfaces import IIntIds
 from zope.lifecycleevent.interfaces import IObjectAddedEvent
@@ -183,6 +185,9 @@ def reindex(obj, event):
     re-indexed for all the other mirrors and master as well.
 
     """
+    if not ICollectiveMirrorLayer.providedBy(getRequest()):
+        return
+
     if IObjectRemovedEvent.providedBy(event):
         return
 
@@ -230,6 +235,9 @@ def unindex(obj, event):
     somewhat mitigated by index queue optimisation.
 
     """
+    if not ICollectiveMirrorLayer.providedBy(getRequest()):
+        return
+
     if IObjectWillBeAddedEvent.providedBy(event):
         return
     if IPloneSiteRoot.providedBy(event.object):
