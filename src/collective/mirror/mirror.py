@@ -22,6 +22,7 @@ from Products.CMFCore.interfaces import ISiteRoot
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import ILanguage
 from Products.CMFPlone.interfaces import IPloneSiteRoot
+from z3c.form.interfaces import IAddForm
 from z3c.relationfield import RelationChoice
 from z3c.relationfield.relation import RelationValue
 from zope.annotation.interfaces import IAnnotations
@@ -49,6 +50,8 @@ class IMirror(model.Schema):
             'selectableTypes': ['Folder'],
         },
     )
+    directives.omitted('master_rel')
+    directives.no_omit(IAddForm, 'master_rel')
 
 
 MIRRORS_ATTR = '_collective_mirrors'
@@ -299,8 +302,7 @@ def find_master(obj):
 #
 # * The same goes for moving a mirror.
 #
-# * Changing a mirror's master doesn't yet result in any reindexing of the mirror's
-#   content at all.
+# * Changing a mirror's master after the mirror has been added isn't supported yet.
 #
 # * Mirrors don't interact with multilingual content in a defined way yet. The reason is
 #   that plone.app.multilingual relies on there being only one object in the catalog for
