@@ -94,7 +94,9 @@ class Mirror(Container):
         self._tree = master._tree
         self._count = master._count
         self._mt_index = master._mt_index
-        self.getOrdering()._set_order(master.getOrdering()._order(create=True))
+        ordering = self.getOrdering()
+        ordering._set_order(master.getOrdering()._order(create=True))
+        IAnnotations(self)[ordering.POS_KEY] = master.getOrdering()._pos(create=True)
 
         mirrors = ensure_mirrors_attr(master)
         setattr(aq_base(self), MIRRORS_ATTR, mirrors)
