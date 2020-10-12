@@ -282,7 +282,7 @@ def find_master(obj):
         mirror_ids = getattr(element, MIRRORS_ATTR, ())
         if mirror_ids:
             master = element.master if IMirror.providedBy(element) else element
-            return master, mirror_ids
+            return aq_base(master), mirror_ids
     else:
         return None, None
 
