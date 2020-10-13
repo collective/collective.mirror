@@ -313,4 +313,6 @@ def find_master(obj):
 #   multilingual content objects to specific mirrors of their translations, we need to
 #   rethink this.
 #
-# * Deleting a folder while it has mirrors isn't handled yet.
+# * Deleting a folder while it has mirrors isn't handled yet. Plone just warns about
+#   breaking references but we might want to offer some better UI to remove all mirrors
+#   along with the folder, or to replace one of the mirrors with a new master folder.
