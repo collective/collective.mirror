@@ -22,6 +22,7 @@ from Products.CMFCore.interfaces import ISiteRoot
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import ILanguage
 from Products.CMFPlone.interfaces import IPloneSiteRoot
+from z3c.form.interfaces import IEditForm
 from z3c.form.interfaces import IAddForm
 from z3c.relationfield import RelationChoice
 from z3c.relationfield.relation import RelationValue
@@ -50,7 +51,7 @@ class IMirror(model.Schema):
             'selectableTypes': ['Folder'],
         },
     )
-    directives.omitted('master_rel')
+    directives.omitted(IEditForm, 'master_rel')
     directives.no_omit(IAddForm, 'master_rel')
 
 
