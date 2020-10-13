@@ -247,6 +247,10 @@ def unindex(obj, event):
 
     if IObjectWillBeRemovedEvent.providedBy(event) and IMirror.providedBy(obj):
         getattr(obj, MIRRORS_ATTR).remove(IUUID(obj))
+        obj._tree = {}
+        ordering = obj.getOrdering()
+        ordering._set_order([])
+        IAnnotations(obj)[ordering.POS_KEY] = {}
 
         objects_unindexed = IAnnotations(obj.master).pop(UNINDEXED_KEY)
         suffix = '-mirrored-' + IUUID(obj)
