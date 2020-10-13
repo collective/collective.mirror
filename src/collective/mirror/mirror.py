@@ -79,13 +79,7 @@ class Mirror(Container):
     @master_rel.setter
     def master_rel(self, value):
         if self._master:
-            old_master = self._master.to_object
-            if old_master:
-                mirrors = getattr(old_master, MIRRORS_ATTR, ())
-                if mirrors:
-                    mirrors.remove(IUUID(self))
-                    if not mirrors:
-                        delattr(old_master, MIRRORS_ATTR)
+            raise AttributeError("Re-setting a mirror's master is not supported.")
 
         self._master = value
 
