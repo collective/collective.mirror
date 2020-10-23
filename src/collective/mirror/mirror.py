@@ -22,8 +22,8 @@ from Products.CMFCore.interfaces import ISiteRoot
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import ILanguage
 from Products.CMFPlone.interfaces import IPloneSiteRoot
-from z3c.form.interfaces import IEditForm
 from z3c.form.interfaces import IAddForm
+from z3c.form.interfaces import IEditForm
 from z3c.relationfield import RelationChoice
 from z3c.relationfield.relation import RelationValue
 from zope.annotation.interfaces import IAnnotations
@@ -33,7 +33,6 @@ from zope.component import getUtility
 from zope.globalrequest import getRequest
 from zope.interface import implementer
 from zope.intid.interfaces import IIntIds
-from zope.lifecycleevent.interfaces import IObjectAddedEvent
 from zope.lifecycleevent.interfaces import IObjectRemovedEvent
 from zope.schema.interfaces import IVocabularyFactory
 
@@ -41,7 +40,7 @@ from zope.schema.interfaces import IVocabularyFactory
 class IMirror(model.Schema):
 
     master_rel = RelationChoice(
-        title=u'Master container',
+        title='Master container',
         vocabulary='collective.mirror.vocabularies.Catalog',
     )
     directives.widget(
@@ -121,8 +120,8 @@ def add_mirror_id_to_master_after_adding(mirror, event):
 
 @implementer(IVocabularyFactory)
 class CatalogVocabularyFactory:
-    """Like plone.app.vocabularies.catalog.CatalogVocabularyFactory but without navroot
-    """
+    """Like plone.app.vocabularies.catalog.CatalogVocabularyFactory but without navroot"""
+
     def __call__(self, context, query=None):
         parsed = {}
         if query:

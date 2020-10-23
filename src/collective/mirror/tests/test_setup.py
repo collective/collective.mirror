@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 """Setup tests for this package."""
+from collective.mirror.testing import (  # noqa: E501
+    COLLECTIVE_MIRROR_INTEGRATION_TESTING,
+)
 from plone import api
 from plone.app.testing import setRoles
 from plone.app.testing import TEST_USER_ID
-from collective.mirror.testing import COLLECTIVE_MIRROR_INTEGRATION_TESTING  # noqa: E501
 
 import unittest
 
@@ -29,17 +30,14 @@ class TestSetup(unittest.TestCase):
 
     def test_product_installed(self):
         """Test if collective.mirror is installed."""
-        self.assertTrue(self.installer.is_product_installed(
-            'collective.mirror'))
+        self.assertTrue(self.installer.is_product_installed('collective.mirror'))
 
     def test_browserlayer(self):
         """Test that ICollectiveMirrorLayer is registered."""
-        from collective.mirror.interfaces import (
-            ICollectiveMirrorLayer)
+        from collective.mirror.interfaces import ICollectiveMirrorLayer
         from plone.browserlayer import utils
-        self.assertIn(
-            ICollectiveMirrorLayer,
-            utils.registered_layers())
+
+        self.assertIn(ICollectiveMirrorLayer, utils.registered_layers())
 
 
 class TestUninstall(unittest.TestCase):
@@ -59,14 +57,11 @@ class TestUninstall(unittest.TestCase):
 
     def test_product_uninstalled(self):
         """Test if collective.mirror is cleanly uninstalled."""
-        self.assertFalse(self.installer.is_product_installed(
-            'collective.mirror'))
+        self.assertFalse(self.installer.is_product_installed('collective.mirror'))
 
     def test_browserlayer_removed(self):
         """Test that ICollectiveMirrorLayer is removed."""
-        from collective.mirror.interfaces import \
-            ICollectiveMirrorLayer
+        from collective.mirror.interfaces import ICollectiveMirrorLayer
         from plone.browserlayer import utils
-        self.assertNotIn(
-            ICollectiveMirrorLayer,
-            utils.registered_layers())
+
+        self.assertNotIn(ICollectiveMirrorLayer, utils.registered_layers())

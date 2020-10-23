@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import pkg_resources
 import subprocess
@@ -26,11 +24,9 @@ def locale_folder_setup():
         else:
             lc_messages_path = lang + '/LC_MESSAGES/'
             os.mkdir(lc_messages_path)
-            cmd = 'msginit --locale={0} --input={1}.pot --output={2}/LC_MESSAGES/{3}.po'.format(  # NOQA: E501
-                lang,
-                domain,
-                lang,
-                domain,
+            cmd = (
+                f'msginit --locale={lang} --input={domain}.pot '
+                f'--output={lang}/LC_MESSAGES/{domain}.po'
             )
             subprocess.call(
                 cmd,
@@ -41,12 +37,9 @@ def locale_folder_setup():
 
 
 def _rebuild():
-    cmd = '{i18ndude} rebuild-pot --pot {locale_path}/{domain}.pot --exclude {excludes} --create {domain} {target_path}'.format(  # NOQA: E501
-        i18ndude=i18ndude,
-        locale_path=locale_path,
-        domain=domain,
-        target_path=target_path,
-        excludes=excludes,
+    cmd = (
+        f'{i18ndude} rebuild-pot --pot {locale_path}/{domain}.pot '
+        f'--exclude {excludes} --create {domain} {target_path}'
     )
     subprocess.call(
         cmd,
@@ -55,12 +48,9 @@ def _rebuild():
 
 
 def _sync():
-    cmd = '{0} sync --pot {1}/{2}.pot {3}*/LC_MESSAGES/{4}.po'.format(
-        i18ndude,
-        locale_path,
-        domain,
-        locale_path,
-        domain,
+    cmd = (
+        f'{i18ndude} sync --pot {locale_path}/{domain}.pot '
+        f'{locale_path}*/LC_MESSAGES/{domain}.po'
     )
     subprocess.call(
         cmd,
