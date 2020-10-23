@@ -134,6 +134,10 @@ class CatalogVocabularyFactory:
         return CatalogVocabulary.fromItems(parsed, context)
 
 
+# Assign mirrored objects a different UUID in the context of their mirror. It is of the
+# form {real-UUID}@{mirror-UUID} which makes the mirroring opaque to
+# plone.app.multlingual's language redirect (p.a.m.browser.helper_views.universal_link).
+#
 # We don't adapt IDexterityContent as we really target IAttributeUUID, which is
 # implemented by the type but not extended by the interface. We cannot adapt
 # IAttributeUUID directly either, since plone.app.multilingual already overrides such an
@@ -146,10 +150,15 @@ def attributeUUID(context):
     sm = getSiteManager()
     uuid = sm.adapters.lookup((IAttributeUUID,), IUUID)
     for element in aq_chain(context)[1:]:
+        # Use context's bare UUID so that if context comes from inside a
+        # plone.app.multilingual LIF, the resulting UUID doesn't look to the language
+        # redirect like a strange language variant of the non-mirrored item, making a
+        # language switch escape from the mirror. The mirror's UUID, sitting at the end
+        # of the combination, will work fine wit the redirect.
         if IMirror.providedBy(element):
-            context_uuid = uuid(aq_base(context)) or ''
+            context_uuid = getattr(context, ATTRIBUTE_NAME, '')
             mirror_uuid = uuid(aq_base(element)) or ''
-            return f'{context_uuid}-mirrored-{mirror_uuid}'
+            return f'{context_uuid}@{mirror_uuid}'
     else:
         return uuid(context)
 
@@ -207,7 +216,7 @@ def reindex(obj, event):
         if not parent_master_id:
             return
         parent_ids = [parent_master_id] + [
-            f'{parent_master_id}-mirrored-{mirror_id}' for mirror_id in mirror_ids
+            f'{parent_master_id}@{mirror_id}' for mirror_id in mirror_ids
         ]
 
     cat = api.portal.get_tool('portal_catalog')
@@ -252,7 +261,7 @@ def unindex(obj, event):
         IAnnotations(obj)[ordering.POS_KEY] = {}
 
         objects_unindexed = IAnnotations(obj.master).pop(UNINDEXED_KEY)
-        suffix = '-mirrored-' + IUUID(obj)
+        suffix = '@' + IUUID(obj)
         for uuid, obj in objects_unindexed:
             if not uuid.endswith(suffix):
                 obj.reindexObject()
@@ -262,8 +271,8 @@ def unindex(obj, event):
     if master is None:
         return
 
-    uuid = IUUID(obj).split('-mirrored-')[0]
-    uuids = [uuid] + [f'{uuid}-mirrored-{mirror_id}' for mirror_id in mirror_ids]
+    uuid = IUUID(obj).split('@')[0]
+    uuids = [uuid] + [f'{uuid}@{mirror_id}' for mirror_id in mirror_ids]
     objects_unindexed = IAnnotations(master).setdefault(UNINDEXED_KEY, set())
 
     cat = api.portal.get_tool('portal_catalog')
