@@ -292,7 +292,10 @@ def find_master(obj):
 # * The mechanism for keeping track of unindexed mirror content when removing a mirror
 #   is probably a bit fragile in that it relies on this being the only operation that
 #   unindexes mirror content in the same request, and a non-persistent annotation on the
-#   master is dropped at the transaction boundary.
+#   master is dropped at the transaction boundary. Maybe a better strategy is to add
+#   some API for detaching the mirror, and then to use the before-delete event on an
+#   attached mirror to prevent deletion. This would also be a step towards changing a
+#   mirror's master, should that be desired at some point.
 #
 # * When a mirror is added and the master already has a nested content hierarchy, this
 #   content isn't properly indexed. This is because the events handled by the reindex
