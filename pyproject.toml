@@ -1,3 +1,6 @@
+[tool.black]
+skip-string-normalization = true
+
 [tool.isort]
 profile = "black"
 force_alphabetical_sort = true
