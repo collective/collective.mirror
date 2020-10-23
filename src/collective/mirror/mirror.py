@@ -5,6 +5,7 @@ from Acquisition import aq_parent
 from OFS.interfaces import IObjectWillBeAddedEvent
 from OFS.interfaces import IObjectWillBeRemovedEvent
 from persistent.list import PersistentList
+from plone import api
 from plone.app.multilingual.dx.interfaces import IDexterityTranslatable
 from plone.app.multilingual.interfaces import ITG
 from plone.app.vocabularies.catalog import CatalogVocabulary
@@ -19,7 +20,6 @@ from plone.uuid.interfaces import ATTRIBUTE_NAME
 from plone.uuid.interfaces import IAttributeUUID
 from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import ISiteRoot
-from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import ILanguage
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 from z3c.form.interfaces import IAddForm
@@ -210,7 +210,7 @@ def reindex(obj, event):
             f'{parent_master_id}-mirrored-{mirror_id}' for mirror_id in mirror_ids
         ]
 
-    cat = getToolByName(obj, 'portal_catalog')
+    cat = api.portal.get_tool('portal_catalog')
     for parent_id in parent_ids:
         brains = cat.unrestrictedSearchResults(UID=parent_id)
         for brain in brains:
@@ -266,7 +266,7 @@ def unindex(obj, event):
     uuids = [uuid] + [f'{uuid}-mirrored-{mirror_id}' for mirror_id in mirror_ids]
     objects_unindexed = IAnnotations(master).setdefault(UNINDEXED_KEY, set())
 
-    cat = getToolByName(obj, 'portal_catalog')
+    cat = api.portal.get_tool('portal_catalog')
     for uuid in uuids:
         brains = cat.unrestrictedSearchResults(UID=uuid)
         for brain in brains:
