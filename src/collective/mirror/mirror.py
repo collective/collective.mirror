@@ -2,6 +2,7 @@ from .interfaces import ICollectiveMirrorLayer
 from Acquisition import aq_base
 from Acquisition import aq_chain
 from Acquisition import aq_parent
+from collections import namedtuple
 from OFS.interfaces import IObjectWillBeAddedEvent
 from persistent.list import PersistentList
 from plone import api
@@ -232,8 +233,8 @@ def reindex(obj, event):
     if IObjectRemovedEvent.providedBy(event):
         return
 
-    master, mirror_ids = find_master(obj)
-    if master is None:
+    info = mirror_info(obj)
+    if info.master is None:
         return
 
     # We try to access newly indexed objects via the parent in order to avoid
@@ -241,15 +242,15 @@ def reindex(obj, event):
     # However, the parent being a mirror is an exception in that mirrors' uuid
     # doesn't follow the pattern for uuids of mirrored objects.
     parent = aq_parent(obj)
-    master_id = IUUID(master)
+    master_id = IUUID(info.master)
     if IMirror.providedBy(parent) or IUUID(parent) == master_id:
-        parent_ids = [master_id] + mirror_ids
+        parent_ids = [master_id] + info.mirror_ids
     else:
         parent_master_id = getattr(parent, ATTRIBUTE_NAME, None)
         if not parent_master_id:
             return
         parent_ids = [parent_master_id] + [
-            f'{parent_master_id}@{mirror_id}' for mirror_id in mirror_ids
+            f'{parent_master_id}@{mirror_id}' for mirror_id in info.mirror_ids
         ]
 
     cat = api.portal.get_tool('portal_catalog')
@@ -276,12 +277,12 @@ def unindex(obj, event):
     if IPloneSiteRoot.providedBy(event.object):
         return
 
-    master, mirror_ids = find_master(obj)
-    if master is None:
+    info = mirror_info(obj)
+    if info.master is None:
         return
 
     uuid = IUUID(obj).split('@')[0]
-    uuids = [uuid] + [f'{uuid}@{mirror_id}' for mirror_id in mirror_ids]
+    uuids = [uuid] + [f'{uuid}@{mirror_id}' for mirror_id in info.mirror_ids]
 
     cat = api.portal.get_tool('portal_catalog')
     for uuid in uuids:
@@ -290,16 +291,18 @@ def unindex(obj, event):
             brain.getObject().unindexObject()
 
 
-def find_master(obj):
+MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror_ids'))
+
+
+def mirror_info(obj):
     for element in aq_chain(obj)[1:]:
         if ISiteRoot.providedBy(element):
-            return None, None
-        mirror_ids = getattr(element, MIRRORS_ATTR, ())
-        if mirror_ids:
+            break
+        if mirror_ids := getattr(element, MIRRORS_ATTR, ()):
             master = element.master if IMirror.providedBy(element) else element
-            return aq_base(master), mirror_ids
-    else:
-        return None, None
+            return MirrorInfo(aq_base(master), mirror_ids)
+
+    return MirrorInfo(None, None)
 
 
 # Known issues to be addressed when moving this to a generalised package:
