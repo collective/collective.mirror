@@ -183,36 +183,28 @@ def attributeUUID(context):
     # context = IAttributeUUID(context)
     sm = getSiteManager()
     uuid = sm.adapters.lookup((IAttributeUUID,), IUUID)
-    for element in aq_chain(context)[1:]:
+    info = mirror_info(context)
+    if info.mirror:
         # Use context's bare UUID so that if context comes from inside a
         # plone.app.multilingual LIF, the resulting UUID doesn't look to the language
         # redirect like a strange language variant of the non-mirrored item, making a
         # language switch escape from the mirror. The mirror's UUID, sitting at the end
         # of the combination, will work fine wit the redirect.
-        if IMirror.providedBy(element):
-            context_uuid = getattr(context, ATTRIBUTE_NAME, '')
-            mirror_uuid = uuid(aq_base(element)) or ''
-            return f'{context_uuid}@{mirror_uuid}'
+        context_uuid = getattr(context, ATTRIBUTE_NAME, '')
+        mirror_uuid = uuid(aq_base(info.mirror)) or ''
+        return f'{context_uuid}@{mirror_uuid}'
     else:
         return uuid(context)
 
 
 @indexer(IDexterityTranslatable)
 def itgIndexer(obj):
-    for element in aq_chain(obj)[1:]:
-        if IMirror.providedBy(element):
-            return None
-    else:
-        return ITG(obj, None)
+    return None if mirror_info(obj).mirror else ITG(obj, None)
 
 
 @indexer(IDexterityTranslatable)
 def LanguageIndexer(obj, **kw):
-    for element in aq_chain(obj)[1:]:
-        if IMirror.providedBy(element):
-            return None
-    else:
-        return ILanguage(obj).get_language()
+    return None if mirror_info(obj).mirror else ILanguage(obj).get_language()
 
 
 # modelled after plone/app/multilingual/subscriber.py
@@ -291,7 +283,7 @@ def unindex(obj, event):
             brain.getObject().unindexObject()
 
 
-MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror_ids'))
+MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror', 'mirror_ids'))
 
 
 def mirror_info(obj):
@@ -299,10 +291,13 @@ def mirror_info(obj):
         if ISiteRoot.providedBy(element):
             break
         if mirror_ids := getattr(element, MIRRORS_ATTR, ()):
-            master = element.master if IMirror.providedBy(element) else element
-            return MirrorInfo(aq_base(master), mirror_ids)
+            if IMirror.providedBy(element):
+                master, mirror = element.master, aq_base(element)
+            else:
+                master, mirror = element, None
+            return MirrorInfo(aq_base(master), mirror, mirror_ids)
 
-    return MirrorInfo(None, None)
+    return MirrorInfo(None, None, None)
 
 
 # Known issues to be addressed when moving this to a generalised package:
