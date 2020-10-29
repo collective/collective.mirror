@@ -3,7 +3,6 @@ from Acquisition import aq_base
 from Acquisition import aq_chain
 from Acquisition import aq_parent
 from OFS.interfaces import IObjectWillBeAddedEvent
-from OFS.interfaces import IObjectWillBeRemovedEvent
 from persistent.list import PersistentList
 from plone import api
 from plone.app.multilingual.dx.interfaces import IDexterityTranslatable
@@ -22,8 +21,6 @@ from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import ISiteRoot
 from Products.CMFPlone.interfaces import ILanguage
 from Products.CMFPlone.interfaces import IPloneSiteRoot
-from z3c.form.interfaces import IAddForm
-from z3c.form.interfaces import IEditForm
 from z3c.relationfield import RelationChoice
 from z3c.relationfield.relation import RelationValue
 from zope.annotation.interfaces import IAnnotations
@@ -42,6 +39,7 @@ class IMirror(model.Schema):
     master_rel = RelationChoice(
         title='Master container',
         vocabulary='collective.mirror.vocabularies.Catalog',
+        required=False,
     )
     directives.widget(
         'master_rel',
@@ -50,8 +48,6 @@ class IMirror(model.Schema):
             'selectableTypes': ['Folder'],
         },
     )
-    directives.omitted(IEditForm, 'master_rel')
-    directives.no_omit(IAddForm, 'master_rel')
 
 
 MIRRORS_ATTR = '_collective_mirrors'
@@ -77,14 +73,14 @@ class Mirror(Container):
 
     @master_rel.setter
     def master_rel(self, value):
-        if self._master:
-            raise AttributeError("Re-setting a mirror's master is not supported.")
+        if self._master is not None:
+            self._detach()
 
         self._master = value
+        if value is not None:
+            self._attach(value.to_object)
 
-        # modelled after plone/app/multilingual/content/lif.py
-        master = value.to_object
-
+    def _attach(self, master):
         self._tree = master._tree
         self._count = master._count
         self._mt_index = master._mt_index
@@ -101,6 +97,24 @@ class Mirror(Container):
             # self cannot yet be adapted to IUUID while being added
             pass
 
+    def _detach(self):
+        cat = api.portal.get_tool('portal_catalog')
+        prefix = cat.unrestrictedSearchResults(UID=IUUID(self))[0].getPath()
+        content_brains = cat.unrestrictedSearchResults(path=prefix)
+        for brain in content_brains:
+            if brain.getPath() != prefix:
+                brain.getObject().unindexObject()
+
+        self._tree = {}
+        self._count = None
+        self._mt_index = {}
+        ordering = self.getOrdering()
+        ordering._set_order([])
+        IAnnotations(self)[ordering.POS_KEY] = {}
+
+        getattr(self, MIRRORS_ATTR).remove(IUUID(self))
+        setattr(self, MIRRORS_ATTR, [])
+
     @property
     def master(self):
         if self.master_rel:
@@ -108,14 +122,33 @@ class Mirror(Container):
 
     @master.setter
     def master(self, obj):
-        obj_id = getUtility(IIntIds).getId(obj)
-        self.master_rel = RelationValue(obj_id)
+        if obj is None:
+            self.master_rel = None
+        else:
+            obj_id = getUtility(IIntIds).getId(obj)
+            self.master_rel = RelationValue(obj_id)
 
 
 def add_mirror_id_to_master_after_adding(mirror, event):
     if mirror.master is not None:
         mirrors = ensure_mirrors_attr(mirror.master)
         mirrors.append(IUUID(mirror))
+
+
+def only_remove_mirror_without_master(mirror, event):
+    """Make sure a mirror still attached to a master cannot be removed.
+
+    Removing an attached mirror would cause all of its contents to be unindexed and
+    deleted, which would in turn reflect in all other mirrors and the master. Even if
+    we could prevent actually deleting the contents by detaching the mirror on the
+    IObjectWillBeRemovedEvent, this would be too late to prevent unindexing: The order
+    in which this subscriber is called for the folder tree objects is from leaf to
+    root. Rather than trying to take back the unindexing, we do the robust thing and
+    prevent a mirror from being removed as long as it is attached to a master folder.
+
+    """
+    if mirror.master is not None:
+        raise ValueError('Cannot remove a mirror that is still attached to a master.')
 
 
 @implementer(IVocabularyFactory)
@@ -234,14 +267,6 @@ def unindex(obj, event):
     object is removed in some mirror or master, we must un-index it for all the other
     mirrors and master as well.
 
-    Removing any mirror would thus unindex contents of all other mirrors and master.
-    Since the order in which this subscriber is called for the folder tree objects is
-    from leaf to root, we cannot easily raise some flag when deleting a mirror to
-    prevent its contents from unindexing all its mirror objects. Instead, we collect all
-    the uids to be unindexed and in case that the subscriber is called on the mirror in
-    the end, reindex what is meant to stay in the index. The performance impact is
-    somewhat mitigated by index queue optimisation.
-
     """
     if not ICollectiveMirrorLayer.providedBy(getRequest()):
         return
@@ -251,37 +276,18 @@ def unindex(obj, event):
     if IPloneSiteRoot.providedBy(event.object):
         return
 
-    UNINDEXED_KEY = 'mirror.tmp.objects_unindexed'
-
-    if IObjectWillBeRemovedEvent.providedBy(event) and IMirror.providedBy(obj):
-        getattr(obj, MIRRORS_ATTR).remove(IUUID(obj))
-        obj._tree = {}
-        ordering = obj.getOrdering()
-        ordering._set_order([])
-        IAnnotations(obj)[ordering.POS_KEY] = {}
-
-        objects_unindexed = IAnnotations(obj.master).pop(UNINDEXED_KEY)
-        suffix = '@' + IUUID(obj)
-        for uuid, obj in objects_unindexed:
-            if not uuid.endswith(suffix):
-                obj.reindexObject()
-        return
-
     master, mirror_ids = find_master(obj)
     if master is None:
         return
 
     uuid = IUUID(obj).split('@')[0]
     uuids = [uuid] + [f'{uuid}@{mirror_id}' for mirror_id in mirror_ids]
-    objects_unindexed = IAnnotations(master).setdefault(UNINDEXED_KEY, set())
 
     cat = api.portal.get_tool('portal_catalog')
     for uuid in uuids:
         brains = cat.unrestrictedSearchResults(UID=uuid)
         for brain in brains:
-            obj = brain.getObject()
-            obj.unindexObject()
-            objects_unindexed.add((uuid, obj))
+            brain.getObject().unindexObject()
 
 
 def find_master(obj):
@@ -298,23 +304,16 @@ def find_master(obj):
 
 # Known issues to be addressed when moving this to a generalised package:
 #
-# * The mechanism for keeping track of unindexed mirror content when removing a mirror
-#   is probably a bit fragile in that it relies on this being the only operation that
-#   unindexes mirror content in the same request, and a non-persistent annotation on the
-#   master is dropped at the transaction boundary. Maybe a better strategy is to add
-#   some API for detaching the mirror, and then to use the before-delete event on an
-#   attached mirror to prevent deletion. This would also be a step towards changing a
-#   mirror's master, should that be desired at some point.
-#
-# * When a mirror is added and the master already has a nested content hierarchy, this
+# * When nested mirror content is added or moved, this
 #   content isn't properly indexed. This is because the events handled by the reindex
 #   handler are called by the location machinery in the order from leaves to root, which
 #   breaks the assumption that we can locate content to be indexed by retrieving the
 #   parent from the catalog. A work-around is rebuilding the catalog.
 #
-# * The same goes for moving a mirror.
-#
-# * Changing a mirror's master after the mirror has been added isn't supported yet.
+# * While we need to allow unsetting (and thus, also setting) the master of an existing
+#   mirror (because we could not delete an attached mirror without collateral damage, in
+#   a robust way), setting a new master doesn't get the contents indexed in the context
+#   of the mirror yet.
 #
 # * Mirrors don't interact with multilingual content in a defined way yet. The reason is
 #   that plone.app.multilingual relies on there being only one object in the catalog for

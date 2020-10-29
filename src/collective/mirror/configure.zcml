@@ -47,6 +47,11 @@
            zope.lifecycleevent.IObjectAddedEvent"
       handler=".mirror.add_mirror_id_to_master_after_adding" />
 
+  <subscriber
+      for=".mirror.IMirror
+           OFS.interfaces.IObjectWillBeRemovedEvent"
+      handler=".mirror.only_remove_mirror_without_master"/>
+
   <adapter factory=".mirror.itgIndexer" name="TranslationGroup"/>
   <adapter factory=".mirror.LanguageIndexer" name="Language"/>
 
