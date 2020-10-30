@@ -219,9 +219,6 @@ def reindex(obj, event):
     re-indexed for all the other mirrors and master as well.
 
     """
-    if not ICollectiveMirrorLayer.providedBy(getRequest()):
-        return
-
     if IObjectRemovedEvent.providedBy(event):
         return
 
@@ -261,9 +258,6 @@ def unindex(obj, event):
     mirrors and master as well.
 
     """
-    if not ICollectiveMirrorLayer.providedBy(getRequest()):
-        return
-
     if IObjectWillBeAddedEvent.providedBy(event):
         return
     if IPloneSiteRoot.providedBy(event.object):
@@ -287,6 +281,9 @@ MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror', 'mirror_ids'))
 
 
 def mirror_info(obj):
+    if not ICollectiveMirrorLayer.providedBy(getRequest()):
+        return MirrorInfo(None, None, None)
+
     for element in aq_chain(obj)[1:]:
         if ISiteRoot.providedBy(element):
             break
