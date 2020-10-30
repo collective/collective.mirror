@@ -175,10 +175,29 @@ def bare_uuid(obj):
     return getattr(obj, ATTRIBUTE_NAME, '')
 
 
-# Assign mirrored objects a different UUID in the context of their mirror. It is of the
-# form {real-UUID}@{mirror-UUID} which makes the mirroring opaque to
-# plone.app.multlingual's language redirect (p.a.m.browser.helper_views.universal_link).
-#
+def uuid_at_mirror(obj, mirror):
+    """Assign mirrored objects a UUID in the context of their mirror (or master).
+
+    It is of the form {bare-UUID}@{mirror-UUID} which is orthogonal to the UUID pattern
+    used by plone.app.multlingual's shared Language Independent Folder. This makes
+    mirrored content look like normal to the language redirect
+    (p.a.m.browser.helper_views.universal_link).
+
+    """
+    # Use context's bare UUID so that if context comes from inside a
+    # plone.app.multilingual LIF, the resulting UUID doesn't look to the language
+    # redirect like a strange language variant of the non-mirrored item, making a
+    # language switch escape from the mirror. The mirror's UUID, sitting at the end of
+    # the combination, will work fine wit the redirect.
+    obj_uuid = bare_uuid(obj)
+
+    sm = getSiteManager()
+    uuid = sm.adapters.lookup((IAttributeUUID,), IUUID)
+    mirror_uuid = uuid(aq_base(mirror)) or ''
+
+    return f'{obj_uuid}@{mirror_uuid}'
+
+
 # We don't adapt IDexterityContent as we really target IAttributeUUID, which is
 # implemented by the type but not extended by the interface. We cannot adapt
 # IAttributeUUID directly either, since plone.app.multilingual already overrides such an
@@ -188,19 +207,11 @@ def bare_uuid(obj):
 @adapter(DexterityContent)
 def attributeUUID(context):
     # context = IAttributeUUID(context)
-    sm = getSiteManager()
-    uuid = sm.adapters.lookup((IAttributeUUID,), IUUID)
-    info = mirror_info(context)
-    if info.mirror:
-        # Use context's bare UUID so that if context comes from inside a
-        # plone.app.multilingual LIF, the resulting UUID doesn't look to the language
-        # redirect like a strange language variant of the non-mirrored item, making a
-        # language switch escape from the mirror. The mirror's UUID, sitting at the end
-        # of the combination, will work fine wit the redirect.
-        context_uuid = bare_uuid(context)
-        mirror_uuid = uuid(aq_base(info.mirror)) or ''
-        return f'{context_uuid}@{mirror_uuid}'
+    if mirror := mirror_info(context).mirror:
+        return uuid_at_mirror(context, mirror)
     else:
+        sm = getSiteManager()
+        uuid = sm.adapters.lookup((IAttributeUUID,), IUUID)
         return uuid(context)
 
 
