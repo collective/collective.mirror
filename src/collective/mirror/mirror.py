@@ -171,6 +171,10 @@ class CatalogVocabularyFactory:
         return CatalogVocabulary.fromItems(parsed, context)
 
 
+def bare_uuid(obj):
+    return getattr(obj, ATTRIBUTE_NAME, '')
+
+
 # Assign mirrored objects a different UUID in the context of their mirror. It is of the
 # form {real-UUID}@{mirror-UUID} which makes the mirroring opaque to
 # plone.app.multlingual's language redirect (p.a.m.browser.helper_views.universal_link).
@@ -193,7 +197,7 @@ def attributeUUID(context):
         # redirect like a strange language variant of the non-mirrored item, making a
         # language switch escape from the mirror. The mirror's UUID, sitting at the end
         # of the combination, will work fine wit the redirect.
-        context_uuid = getattr(context, ATTRIBUTE_NAME, '')
+        context_uuid = bare_uuid(context)
         mirror_uuid = uuid(aq_base(info.mirror)) or ''
         return f'{context_uuid}@{mirror_uuid}'
     else:
@@ -238,7 +242,7 @@ def reindex(obj, event):
     if IMirror.providedBy(parent) or IUUID(parent) == master_id:
         parent_ids = [master_id] + info.mirror_ids
     else:
-        parent_master_id = getattr(parent, ATTRIBUTE_NAME, None)
+        parent_master_id = bare_uuid(parent)
         if not parent_master_id:
             return
         parent_ids = [parent_master_id] + [
