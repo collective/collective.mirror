@@ -300,7 +300,7 @@ def mirror_info(obj):
     return MirrorInfo(None, None, None)
 
 
-# Known issues to be addressed when moving this to a generalised package:
+# Known issues:
 #
 # * When nested mirror content is added or moved, this
 #   content isn't properly indexed. This is because the events handled by the reindex
@@ -324,3 +324,8 @@ def mirror_info(obj):
 # * Deleting a folder while it has mirrors isn't handled yet. Plone just warns about
 #   breaking references but we might want to offer some better UI to remove all mirrors
 #   along with the folder, or to replace one of the mirrors with a new master folder.
+#
+# * A mirror still attached to a master cannot be deleted, which is good, but we don't
+#   issue a useful error message to the user yet.
+#
+# * Indexing complains about duplicate UUIDs.
