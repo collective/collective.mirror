@@ -51,6 +51,10 @@ class IMirror(model.Schema):
     )
 
 
+MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror', 'mirror_ids'))
+
+NOT_MIRRORED = MirrorInfo(None, None, None)
+
 MIRRORS_ATTR = '_collective_mirrors'
 
 
@@ -249,7 +253,7 @@ def reindex(obj, event):
         return
 
     info = mirror_info(obj)
-    if info.master is None:
+    if info is NOT_MIRRORED:
         return
 
     # We try to access newly indexed objects via the parent in order to avoid
@@ -290,7 +294,7 @@ def unindex(obj, event):
         return
 
     info = mirror_info(obj)
-    if info.master is None:
+    if info is NOT_MIRRORED:
         return
 
     uuid = IUUID(obj).split('@')[0]
@@ -303,12 +307,9 @@ def unindex(obj, event):
             brain.getObject().unindexObject()
 
 
-MirrorInfo = namedtuple('MirrorInfo', ('master', 'mirror', 'mirror_ids'))
-
-
 def mirror_info(obj):
     if not ICollectiveMirrorLayer.providedBy(getRequest()):
-        return MirrorInfo(None, None, None)
+        return NOT_MIRRORED
 
     for element in aq_chain(obj)[1:]:
         if ISiteRoot.providedBy(element):
@@ -320,7 +321,7 @@ def mirror_info(obj):
                 master, mirror = element, None
             return MirrorInfo(aq_base(master), mirror, mirror_ids)
 
-    return MirrorInfo(None, None, None)
+    return NOT_MIRRORED
 
 
 # Known issues:
