@@ -148,6 +148,9 @@ def only_remove_mirror_without_master(mirror, event):
     prevent a mirror from being removed as long as it is attached to a master folder.
 
     """
+    if IPloneSiteRoot.providedBy(event.object):
+        return
+
     if mirror.master is not None:
         raise ValueError('Cannot remove a mirror that is still attached to a master.')
 
