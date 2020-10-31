@@ -32,6 +32,7 @@ from zope.globalrequest import getRequest
 from zope.interface import implementer
 from zope.intid.interfaces import IIntIds
 from zope.lifecycleevent.interfaces import IObjectRemovedEvent
+from zope.location.interfaces import LocationError
 from zope.schema.interfaces import IVocabularyFactory
 
 
@@ -133,6 +134,9 @@ class Mirror(Container):
             obj_id = getUtility(IIntIds).getId(obj)
             self.master_rel = RelationValue(obj_id)
 
+    def get_object(self, obj):
+        return get_object_in_tree(obj, self)
+
 
 def add_mirror_id_to_master_after_adding(mirror, event):
     if mirror.master is not None:
@@ -190,6 +194,9 @@ def uuid_at_mirror(obj, mirror):
     (p.a.m.browser.helper_views.universal_link).
 
     """
+    if not IMirror.providedBy(mirror):
+        return bare_uuid(obj)
+
     # Use context's bare UUID so that if context comes from inside a
     # plone.app.multilingual LIF, the resulting UUID doesn't look to the language
     # redirect like a strange language variant of the non-mirrored item, making a
@@ -324,6 +331,63 @@ def mirror_info(obj):
     return NOT_MIRRORED
 
 
+def placeless_mirror_info(obj):
+    """Retrieve mirror info for objects without a useful parent chain.
+
+    Objects may not come with a useful parent chain to walk in search of a mirror, e.g.
+    if they are retrieved by IntId, such as when resolving a relation. We look them up
+    in the catalog by their UUID, which would find them as located in the master tree.
+
+    """
+    if (info := mirror_info(obj)) is not NOT_MIRRORED:
+        return info
+
+    cat = api.portal.get_tool('portal_catalog')
+    return (
+        mirror_info(brains[0].getObject())
+        if (brains := cat.unrestrictedSearchResults(UID=IUUID(obj)))
+        else NOT_MIRRORED
+    )
+
+
+def get_object_in_tree(obj, target):
+    """Look up an object within the content tree of a particular mirror (or master).
+
+    Target may either be a mirror or a mirrored folder (master).
+
+    Object may be any content object. If part of the content tree referred to by the
+    requested target, it is returned as contained within the corresponding location. The
+    object may be passed as seen at any of its mirror (or master) locations.
+
+    If the object isn't part of the tree, LocationError is raised. If it looks like the
+    object is part of the tree but isn't found in the catalog as associated with this
+    target, IndexError is raised.
+
+    """
+    if not getattr(target, MIRRORS_ATTR, None):
+        raise ValueError(f'{target} is neither a mirror nor a mirrored folder.')
+
+    info = placeless_mirror_info(obj)
+    if not (
+        aq_base(info.master) is aq_base(target)
+        or info.mirror_ids and IUUID(target) in info.mirror_ids
+    ):
+        raise LocationError(f'{obj} is not located in the content tree of {target}.')
+
+    return _get_object_in_tree(obj, target)
+
+
+def _get_object_in_tree(obj, target):
+    cat = api.portal.get_tool('portal_catalog')
+    obj_uuid = uuid_at_mirror(obj, target)
+    brains = cat.unrestrictedSearchResults(UID=obj_uuid)
+    if len(brains) != 1:
+        raise IndexError(f'{obj} at {target} not found in catalog.')
+
+    target_obj = brains[0].getObject()
+    return target_obj
+
+
 # Known issues:
 #
 # * When nested mirror content is added or moved, this
@@ -354,3 +418,6 @@ def mirror_info(obj):
 #
 # * The way we currently register the IUUID adapter would leave content that provides
 #   IDexterityContent but not IAttributeUUID without a UUID. Are there any such types?
+#
+# * The number of catalog queries to find objects in a specified mirror might
+#   be optimised.
