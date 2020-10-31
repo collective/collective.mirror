@@ -142,15 +142,17 @@ def only_remove_mirror_without_master(mirror, event):
     Removing an attached mirror would cause all of its contents to be unindexed and
     deleted, which would in turn reflect in all other mirrors and the master. Even if
     we could prevent actually deleting the contents by detaching the mirror on the
-    IObjectWillBeRemovedEvent, this would be too late to prevent unindexing: The order
-    in which this subscriber is called for the folder tree objects is from leaf to
-    root. Rather than trying to take back the unindexing, we do the robust thing and
-    prevent a mirror from being removed as long as it is attached to a master folder.
+    IObjectWillBeRemovedEvent, this would be too late to prevent other side-effects: The
+    order in which the same event is handled for the folder tree objects is from leaf to
+    root. Even if we could do something about unindexing, we cannot know what other
+    handlers might be registered. So we do the robust thing and prevent a mirror from
+    being removed as long as it is attached to a master folder.
 
     """
     if IPloneSiteRoot.providedBy(event.object):
         return
 
+    # XXX Also abort the transaction?
     if mirror.master is not None:
         raise ValueError('Cannot remove a mirror that is still attached to a master.')
 
