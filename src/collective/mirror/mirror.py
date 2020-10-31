@@ -260,7 +260,7 @@ def reindex(obj, event):
         return
 
     info = mirror_info(obj)
-    if info is NOT_MIRRORED:
+    if info == NOT_MIRRORED:
         return
 
     # We try to access newly indexed objects via the parent in order to avoid
@@ -301,7 +301,7 @@ def unindex(obj, event):
         return
 
     info = mirror_info(obj)
-    if info is NOT_MIRRORED:
+    if info == NOT_MIRRORED:
         return
 
     uuid = IUUID(obj).split('@')[0]
@@ -339,7 +339,7 @@ def placeless_mirror_info(obj):
     in the catalog by their UUID, which would find them as located in the master tree.
 
     """
-    if (info := mirror_info(obj)) is not NOT_MIRRORED:
+    if (info := mirror_info(obj)) != NOT_MIRRORED:
         return info
 
     cat = api.portal.get_tool('portal_catalog')
@@ -395,7 +395,7 @@ def get_object_for_language(obj, language):
 
     """
     info = placeless_mirror_info(obj)
-    if info is NOT_MIRRORED:
+    if info == NOT_MIRRORED:
         raise LocationError(f'{obj} is not located in any mirrored content tree.')
 
     if language is None:
