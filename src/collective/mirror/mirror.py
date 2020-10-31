@@ -13,7 +13,7 @@ from plone.app.vocabularies.utils import parseQueryString
 from plone.app.z3cform.widget import RelatedItemsFieldWidget
 from plone.autoform import directives
 from plone.dexterity.content import Container
-from plone.dexterity.content import DexterityContent
+from plone.dexterity.interfaces import IDexterityContent
 from plone.indexer import indexer
 from plone.supermodel import model
 from plone.uuid.interfaces import ATTRIBUTE_NAME
@@ -200,15 +200,21 @@ def uuid_at_mirror(obj, mirror):
     return f'{obj_uuid}@{mirror_uuid}'
 
 
-# We don't adapt IDexterityContent as we really target IAttributeUUID, which is
-# implemented by the type but not extended by the interface. We cannot adapt
-# IAttributeUUID directly either, since plone.app.multilingual already overrides such an
-# adapter and we need to reuse it. Also, ZCA configuration won't let us compete with the
-# override anyway.
+# We'd really like to adapt IAttributeUUID here, but we cannot since
+# plone.app.multilingual already overrides such an adapter and ZCA configuration won't
+# let us compete with the override anyway. Also, we want to reuse it for non-mirrored
+# content.
+#
+# So instead, we go for dexterity content which happens to provide IAttributeUUID.
+# Adapting the DexterityContent type directly doesn't work either, so even though
+# IDexterityContent doesn't extend IAttributeUUID, we still adapt it and check for
+# IAttributeUUID manually. This would leave content that provides IDexterityContent but
+# not IAttributeUUID without a UUID.
 @implementer(IUUID)
-@adapter(DexterityContent)
+@adapter(IDexterityContent)
 def attributeUUID(context):
-    # context = IAttributeUUID(context)
+    if not IAttributeUUID.providedBy(context):
+        raise TypeError(f'Cannot determine a UUID for {context}.')
     if mirror := mirror_info(context).mirror:
         return uuid_at_mirror(context, mirror)
     else:
@@ -345,4 +351,5 @@ def mirror_info(obj):
 # * A mirror still attached to a master cannot be deleted, which is good, but we don't
 #   issue a useful error message to the user yet.
 #
-# * Indexing complains about duplicate UUIDs.
+# * The way we currently register the IUUID adapter would leave content that provides
+#   IDexterityContent but not IAttributeUUID without a UUID. Are there any such types?
