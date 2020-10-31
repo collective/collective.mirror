@@ -377,6 +377,49 @@ def get_object_in_tree(obj, target):
     return _get_object_in_tree(obj, target)
 
 
+def get_object_for_language(obj, language):
+    """Look up an object within the content tree of a mirror (or master), by language.
+
+    Language may either be a language code or None. None means the master folder
+    associated with the object, and a language means that mirror of the object's master
+    folder which resides inside the corresponding Language Root Folder. This implies
+    that the content tree in question be mirrored only once per language.
+
+    Object may be any content object. If it is part of a mirrored content tree, it is
+    returned as contained within the location at the requested language. The object may
+    be passed as seen at any of its mirror (or master) locations.
+
+    If the object isn't part of a mirrored tree, LocationError is raised. If it looks
+    like the object is part of a tree but isn't found in the catalog as associated with
+    the target, IndexError is raised.
+
+    """
+    info = placeless_mirror_info(obj)
+    if info is NOT_MIRRORED:
+        raise LocationError(f'{obj} is not located in any mirrored content tree.')
+
+    if language is None:
+        return _get_object_in_tree(obj, info.master)
+
+    cat = api.portal.get_tool('portal_catalog')
+    candidates = [
+        brain
+        for mirror_id in info.mirror_ids
+        if (brains := cat.unrestrictedSearchResults(UID=mirror_id))
+        and (brain := brains[0]).Language == language
+    ]
+
+    if not candidates:
+        raise IndexError(
+            f'Mirror in language {language} containing {obj} not found in catalog.'
+        )
+    if len(candidates) > 1:
+        raise IndexError(
+            f'Mirror in language {language} containing {obj} not unique in catalog.'
+        )
+    return _get_object_in_tree(obj, candidates[0].getObject())
+
+
 def _get_object_in_tree(obj, target):
     cat = api.portal.get_tool('portal_catalog')
     obj_uuid = uuid_at_mirror(obj, target)
