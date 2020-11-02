@@ -4,6 +4,19 @@
     xmlns:plone="http://namespaces.plone.org/plone"
     i18n_domain="collective.mirror">
 
+  <!-- Viewlet for switching language -->
+  <configure package="plone.app.multilingual.browser">
+    <browser:viewlet
+      name="collective.mirror.languageselector"
+      template="templates/languageselector.pt"
+      manager="plone.app.layout.viewlets.interfaces.IPortalHeader"
+      class="plone.app.multilingual.browser.selector.LanguageSelectorViewlet"
+      permission="zope2.View"
+      for="collective.mirror.interfaces.ILanguageSelectable"
+      layer="plone.app.multilingual.interfaces.IPloneAppMultilingualInstalled"
+      />
+  </configure>
+
   <!-- Set overrides folder for Just-a-Bunch-Of-Templates product -->
   <include package="z3c.jbot" file="meta.zcml" />
   <browser:jbot
