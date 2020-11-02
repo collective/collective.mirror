@@ -6,6 +6,7 @@ from collections import namedtuple
 from OFS.interfaces import IObjectWillBeAddedEvent
 from persistent.list import PersistentList
 from plone import api
+from plone.app.layout.navigation.interfaces import INavigationRoot
 from plone.app.multilingual.dx.interfaces import IDexterityTranslatable
 from plone.app.multilingual.interfaces import ITG
 from plone.app.multilingual.interfaces import LANGUAGE_INDEPENDENT
@@ -380,6 +381,83 @@ def get_object_in_tree(obj, target):
         raise LocationError(f'{obj} is not located in the content tree of {target}.')
 
     return _get_object_in_tree(obj, target)
+
+
+def get_navroots(content):
+    return [
+        aq_base(item)
+        for item in aq_chain(content)
+        if INavigationRoot.providedBy(item)
+    ]
+
+
+def get_object_in_navroot(obj, target):
+    """Look up an object within the content tree of a mirror, by shared navigation root.
+
+    Target may be any content object. It is used to find a mirror (or master) that
+    shares the same navigation root and contains the object in question.
+
+    Object may be any content object. If it is part of a mirrored content tree, it is
+    returned as contained within the location found based on target. The object may be
+    passed as seen at any of its mirror (or master) locations.
+
+    If the object isn't part of a mirrored tree, LocationError is raised.
+
+    Since navigation roots may be nested, the rule for "sharing the same nav root" is as
+    follows: If the navigation root closest to the target (possibly the target itself)
+    is a possible candidate mirror, this is it. Otherwise, any candidate mirror inside
+    this nav root that doesn't also live inside another nested nav root is considered.
+    If there is none, a possible mirror living inside any nested nav roots is looked for
+    next, without order of precedence of nested nav roots. Failing that as well, the
+    process is repeated with respect to the nav root next-closest to the target, and so
+    on, up to the portal root.
+
+    If the first mirror thus found is not unique, LookupError is raised.
+
+    """
+    info = placeless_mirror_info(obj)
+    if info == NOT_MIRRORED:
+        raise LocationError(f'{obj} is not located in any mirrored content tree.')
+
+    cat = api.portal.get_tool('portal_catalog')
+    trees = set(
+        brains[0].getObject()
+        for mirror_id in info.mirror_ids
+        if (brains := cat.unrestrictedSearchResults(UID=mirror_id))
+    )
+    trees.add(cat.unrestrictedSearchResults(UID=IUUID(info.master))[0].getObject())
+
+    navroots_by_tree = {aq_base(tree): get_navroots(tree) for tree in trees}
+    import pdb; pdb.set_trace()
+    for shared_navroot in get_navroots(target):
+        if shared_navroot in trees:
+            tree = shared_navroot
+            break
+
+        candidates = [
+            tree
+            for tree, navroots in navroots_by_tree.items()
+            if navroots and shared_navroot is navroots[0]
+        ] or [
+            tree
+            for tree, navroots in navroots_by_tree.items()
+            if shared_navroot in navroots[1:]
+        ]
+        if len(candidates) > 1:
+            raise LookupError(
+                f'Mirror found via navigation root for {target} '
+                f'containing {obj} not unique.'
+            )
+        if len(candidates) == 1:
+            tree = candidates[0]
+            break
+    else:
+        raise AssertionError(
+            f'No mirror found for {obj} by navigation root. '
+            f'This should never happen.'
+        )
+
+    return _get_object_in_tree(obj, tree)
 
 
 def get_object_for_language(obj, language):
