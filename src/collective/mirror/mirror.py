@@ -8,6 +8,7 @@ from persistent.list import PersistentList
 from plone import api
 from plone.app.multilingual.dx.interfaces import IDexterityTranslatable
 from plone.app.multilingual.interfaces import ITG
+from plone.app.multilingual.interfaces import LANGUAGE_INDEPENDENT
 from plone.app.vocabularies.catalog import CatalogVocabulary
 from plone.app.vocabularies.utils import parseQueryString
 from plone.app.z3cform.widget import RelatedItemsFieldWidget
@@ -241,7 +242,11 @@ def itgIndexer(obj):
 
 @indexer(IDexterityTranslatable)
 def LanguageIndexer(obj, **kw):
-    return None if mirror_info(obj).mirror else ILanguage(obj).get_language()
+    return (
+        LANGUAGE_INDEPENDENT
+        if mirror_info(obj).mirror else
+        ILanguage(obj).get_language()
+    )
 
 
 # modelled after plone/app/multilingual/subscriber.py
