@@ -3,6 +3,7 @@ from Acquisition import aq_base
 from Acquisition import aq_chain
 from Acquisition import aq_parent
 from collections import namedtuple
+from logging import getLogger
 from OFS.interfaces import IObjectWillBeAddedEvent
 from persistent.list import PersistentList
 from plone import api
@@ -36,6 +37,8 @@ from zope.intid.interfaces import IIntIds
 from zope.lifecycleevent.interfaces import IObjectRemovedEvent
 from zope.location.interfaces import LocationError
 from zope.schema.interfaces import IVocabularyFactory
+
+logger = getLogger(__name__)
 
 
 class IMirror(model.Schema):
@@ -428,7 +431,6 @@ def get_object_in_navroot(obj, target):
     trees.add(cat.unrestrictedSearchResults(UID=IUUID(info.master))[0].getObject())
 
     navroots_by_tree = {aq_base(tree): get_navroots(tree) for tree in trees}
-    import pdb; pdb.set_trace()
     for shared_navroot in get_navroots(target):
         if shared_navroot in trees:
             tree = shared_navroot
@@ -479,7 +481,8 @@ def get_object_for_language(obj, language):
     """
     info = placeless_mirror_info(obj)
     if info == NOT_MIRRORED:
-        raise LocationError(f'{obj} is not located in any mirrored content tree.')
+        logger.debug(f'{obj} is not located in any mirrored content tree.')
+        return obj
 
     if language is None:
         return _get_object_in_tree(obj, info.master)
