@@ -249,8 +249,8 @@ def itgIndexer(obj):
 def LanguageIndexer(obj, **kw):
     return (
         LANGUAGE_INDEPENDENT
-        if mirror_info(obj).mirror else
-        ILanguage(obj).get_language()
+        if mirror_info(obj).mirror
+        else ILanguage(obj).get_language()
     )
 
 
@@ -380,7 +380,8 @@ def get_object_in_tree(obj, target):
     info = placeless_mirror_info(obj)
     if not (
         aq_base(info.master) is aq_base(target)
-        or info.mirror_ids and IUUID(target) in info.mirror_ids
+        or info.mirror_ids
+        and IUUID(target) in info.mirror_ids
     ):
         raise LocationError(f'{obj} is not located in the content tree of {target}.')
 
@@ -389,9 +390,7 @@ def get_object_in_tree(obj, target):
 
 def get_navroots(content):
     return [
-        aq_base(item)
-        for item in aq_chain(content)
-        if INavigationRoot.providedBy(item)
+        aq_base(item) for item in aq_chain(content) if INavigationRoot.providedBy(item)
     ]
 
 
@@ -424,11 +423,11 @@ def get_object_in_navroot(obj, target):
         raise LocationError(f'{obj} is not located in any mirrored content tree.')
 
     cat = api.portal.get_tool('portal_catalog')
-    trees = set(
+    trees = {
         brains[0].getObject()
         for mirror_id in info.mirror_ids
         if (brains := cat.unrestrictedSearchResults(UID=mirror_id))
-    )
+    }
     trees.add(cat.unrestrictedSearchResults(UID=IUUID(info.master))[0].getObject())
 
     navroots_by_tree = {aq_base(tree): get_navroots(tree) for tree in trees}
