@@ -550,3 +550,8 @@ def _get_object_in_tree(obj, target):
 #
 # * The number of catalog queries to find objects in a specified mirror might
 #   be optimised.
+#
+# * Maybe a marker interface for mirrored content might be a good idea? Could be set and
+#   unset when attaching or detaching a mirror, resp. Would save looking for that
+#   browser layer as well as simplify adapters and subscribers that are now registered
+#   for all content and have to check whether they're dealing with mirrored context.
