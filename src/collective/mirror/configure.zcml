@@ -40,7 +40,7 @@
       name="collective.mirror-hiddenprofiles"
       />
 
-  <adapter factory=".mirror.attributeUUID" />
+  <adapter factory=".mirror.mirror_aware_attribute_uuid" />
 
   <subscriber
       for=".mirror.IMirror

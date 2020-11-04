@@ -19,7 +19,7 @@ from plone.dexterity.content import Container
 from plone.dexterity.interfaces import IDexterityContent
 from plone.indexer import indexer
 from plone.supermodel import model
-from plone.uuid.interfaces import ATTRIBUTE_NAME
+from plone.uuid.adapter import attributeUUID
 from plone.uuid.interfaces import IAttributeUUID
 from plone.uuid.interfaces import IUUID
 from Products.CMFCore.interfaces import ISiteRoot
@@ -37,6 +37,7 @@ from zope.intid.interfaces import IIntIds
 from zope.lifecycleevent.interfaces import IObjectRemovedEvent
 from zope.location.interfaces import LocationError
 from zope.schema.interfaces import IVocabularyFactory
+
 
 logger = getLogger(__name__)
 
@@ -187,7 +188,7 @@ class CatalogVocabularyFactory:
 
 
 def bare_uuid(obj):
-    return getattr(obj, ATTRIBUTE_NAME, '')
+    return attributeUUID(obj) or ''
 
 
 def uuid_at_mirror(obj, mirror):
@@ -228,7 +229,7 @@ def uuid_at_mirror(obj, mirror):
 # not IAttributeUUID without a UUID.
 @implementer(IUUID)
 @adapter(IDexterityContent)
-def attributeUUID(context):
+def mirror_aware_attribute_uuid(context):
     if not IAttributeUUID.providedBy(context):
         raise TypeError(f'Cannot determine a UUID for {context}.')
     if mirror := mirror_info(context).mirror:
