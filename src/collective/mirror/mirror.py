@@ -8,16 +8,16 @@ from OFS.interfaces import IObjectWillBeAddedEvent
 from persistent.list import PersistentList
 from plone import api
 from plone.app.layout.navigation.interfaces import INavigationRoot
-from plone.app.multilingual.dx.interfaces import IDexterityTranslatable
+from plone.app.multilingual.dx.language import Language
 from plone.app.multilingual.interfaces import ITG
-from plone.app.multilingual.interfaces import LANGUAGE_INDEPENDENT
+from plone.app.multilingual.interfaces import ITranslatable
+from plone.app.multilingual.itg import attributeTG
 from plone.app.vocabularies.catalog import CatalogVocabulary
 from plone.app.vocabularies.utils import parseQueryString
 from plone.app.z3cform.widget import RelatedItemsFieldWidget
 from plone.autoform import directives
 from plone.dexterity.content import Container
 from plone.dexterity.interfaces import IDexterityContent
-from plone.indexer import indexer
 from plone.supermodel import model
 from plone.uuid.adapter import attributeUUID
 from plone.uuid.interfaces import IAttributeUUID
@@ -240,18 +240,34 @@ def mirror_aware_attribute_uuid(context):
         return uuid(context)
 
 
-@indexer(IDexterityTranslatable)
-def itgIndexer(obj):
-    return None if mirror_info(obj).mirror else ITG(obj, None)
+@implementer(ITG)
+@adapter(ITranslatable)
+def mirror_aware_attribute_tg(context):
+    tg = attributeTG(context)
+    if mirror := mirror_info(context).mirror:
+        mirror_tg = attributeTG(mirror)
+        return f'{tg}@{mirror_tg}'
+    else:
+        return tg
 
 
-@indexer(IDexterityTranslatable)
-def LanguageIndexer(obj, **kw):
-    return (
-        LANGUAGE_INDEPENDENT
-        if mirror_info(obj).mirror
-        else ILanguage(obj).get_language()
-    )
+@implementer(ILanguage)
+@adapter(IDexterityContent)
+class MirrorAwareLanguage(Language):
+    def get_language(self):
+        info = mirror_info(self.context)
+        return (
+            ILanguage(info.mirror)
+            if info.mirror
+            else ILanguage(info.master)
+            if info.master
+            else super()
+        ).get_language()
+
+    def set_language(self, language):
+        if mirror_info(self.context).mirror is not None:
+            raise ValueError('Setting language not allowed for mirrored content.')
+        super().set_language(language)
 
 
 # modelled after plone/app/multilingual/subscriber.py
@@ -530,13 +546,10 @@ def _get_object_in_tree(obj, target):
 #   a robust way), setting a new master doesn't get the contents indexed in the context
 #   of the mirror yet.
 #
-# * Mirrors don't interact with multilingual content in a defined way yet. The reason is
-#   that plone.app.multilingual relies on there being only one object in the catalog for
-#   each pair of translation group and language. We currently work around this issue by
-#   indexing any mirror content without translation group or language (hence the
-#   overwritten itgIndexer and LanguageIndexer). If we ever need to be able to link
-#   multilingual content objects to specific mirrors of their translations, we need to
-#   rethink this.
+# * Mirrors cannot be translated while attached to a master, as that would result in an
+#   attempt to create a new content tree. The work-around is to unset the master folder,
+#   create the translated mirror, and then edit the mirror in both the source and target
+#   language to set the appropriate master folders.
 #
 # * Deleting a folder while it has mirrors isn't handled yet. Plone just warns about
 #   breaking references but we might want to offer some better UI to remove all mirrors

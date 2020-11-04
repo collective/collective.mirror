@@ -52,9 +52,6 @@
            OFS.interfaces.IObjectWillBeRemovedEvent"
       handler=".mirror.only_remove_mirror_without_master"/>
 
-  <adapter factory=".mirror.itgIndexer" name="TranslationGroup"/>
-  <adapter factory=".mirror.LanguageIndexer" name="Language"/>
-
   <subscriber
       for="plone.dexterity.interfaces.IDexterityContent
            zope.lifecycleevent.interfaces.IObjectMovedEvent"

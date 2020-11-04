@@ -1,0 +1,7 @@
+<configure xmlns="http://namespaces.zope.org/zope"
+    i18n_domain="plone">
+
+  <adapter factory=".mirror.mirror_aware_attribute_tg"/>
+  <adapter factory=".mirror.MirrorAwareLanguage"/>
+
+</configure>
