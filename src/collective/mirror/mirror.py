@@ -436,7 +436,8 @@ def get_object_in_navroot(obj, target):
     """
     info = placeless_mirror_info(obj)
     if info == NOT_MIRRORED:
-        raise LocationError(f'{obj} is not located in any mirrored content tree.')
+        logger.debug(f'{obj} is not located in any mirrored content tree.')
+        return obj
 
     cat = api.portal.get_tool('portal_catalog')
     trees = {
