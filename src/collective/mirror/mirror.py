@@ -443,9 +443,9 @@ def get_object_in_navroot(obj, target):
     trees = {
         brains[0].getObject()
         for mirror_id in info.mirror_ids
-        if (brains := cat.unrestrictedSearchResults(UID=mirror_id))
+        if (brains := cat.searchResults(UID=mirror_id))
     }
-    trees.add(cat.unrestrictedSearchResults(UID=IUUID(info.master))[0].getObject())
+    trees.add(cat.searchResults(UID=IUUID(info.master))[0].getObject())
 
     navroots_by_tree = {aq_base(tree): get_navroots(tree) for tree in trees}
     for shared_navroot in get_navroots(target):
