@@ -439,13 +439,12 @@ def get_object_in_navroot(obj, target):
         logger.debug(f'{obj} is not located in any mirrored content tree.')
         return obj
 
-    cat = api.portal.get_tool('portal_catalog')
     trees = {
         brains[0].getObject()
         for mirror_id in info.mirror_ids
-        if (brains := cat.searchResults(UID=mirror_id))
+        if (brains := api.content.find(UID=mirror_id))
     }
-    trees.add(cat.searchResults(UID=IUUID(info.master))[0].getObject())
+    trees.add(api.content.find(UID=IUUID(info.master))[0].getObject())
 
     navroots_by_tree = {aq_base(tree): get_navroots(tree) for tree in trees}
     for shared_navroot in get_navroots(target):
@@ -504,11 +503,10 @@ def get_object_for_language(obj, language):
     if language is None:
         return _get_object_in_tree(obj, info.master)
 
-    cat = api.portal.get_tool('portal_catalog')
     candidates = [
         brain
         for mirror_id in info.mirror_ids
-        if (brains := cat.unrestrictedSearchResults(UID=mirror_id))
+        if (brains := api.content.find(UID=mirror_id))
         and (brain := brains[0]).Language == language
     ]
 
